@@ -109,7 +109,7 @@ celerybeat.pid
 .env
 .venv
 .RLenv
-Rlenv/
+RLenv/
 env/
 venv/
 ENV/
