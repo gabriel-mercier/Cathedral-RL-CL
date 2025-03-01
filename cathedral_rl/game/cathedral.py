@@ -77,8 +77,9 @@ from pettingzoo.utils.agent_selector import agent_selector
 from .board import Board
 
 
-def env(render_mode=None, per_move_rewards=False, final_reward_score_difference=False):
+def env(board_size=10, render_mode=None, per_move_rewards=False, final_reward_score_difference=False):
     env = raw_env(
+        board_size=board_size,
         render_mode=render_mode,
         per_move_rewards=per_move_rewards,
         final_reward_score_difference=final_reward_score_difference,
@@ -100,6 +101,7 @@ class raw_env(AECEnv):
 
     def __init__(
         self,
+        board_size,
         render_mode=None,
         per_move_rewards: Optional[bool] = False,
         final_reward_score_difference: Optional[bool] = False,
@@ -108,7 +110,7 @@ class raw_env(AECEnv):
         super().__init__()
         self.screen = None
         self.render_mode = render_mode
-
+        self.board_size = board_size
         # Enable to set per-move rewards as heuristic score of how good a move is (used by simple greedy agent)
         self.per_move_rewards = per_move_rewards
 
@@ -128,7 +130,7 @@ class raw_env(AECEnv):
             self.clock = pygame.time.Clock()
             self.WINDOW_WIDTH, self.WINDOW_HEIGHT = self.window.get_size()
 
-        self.board = Board()
+        self.board = Board(board_size=self.board_size)
 
         self.agents = ["player_0", "player_1"]
         self.possible_agents = self.agents[:]
@@ -140,7 +142,7 @@ class raw_env(AECEnv):
             i: spaces.Dict(
                 {
                     "observation": spaces.Box(
-                        low=0, high=1, shape=(10, 10, 5), dtype=np.int8
+                        low=0, high=1, shape=(self.board_size, self.board_size, 5), dtype=np.int8
                     ),
                     "action_mask": spaces.Box(
                         low=0, high=1, shape=(self.board.num_actions,), dtype=np.int8
@@ -164,8 +166,8 @@ class raw_env(AECEnv):
     #        [2, 0, 0, 0, 1, 1, 0],
     #        [1, 1, 2, 1, 0, 1, 0]], dtype=int8)
     def observe(self, agent):
-        board_vals = self.board.squares.reshape(10, 10)
-        board_territory = self.board.territory.reshape(10, 10)
+        board_vals = self.board.squares.reshape(self.board_size, self.board_size)
+        board_territory = self.board.territory.reshape(self.board_size, self.board_size)
         cur_player = self.possible_agents.index(agent)
         opp_player = (cur_player + 1) % 2
 
@@ -238,6 +240,7 @@ class raw_env(AECEnv):
         self.rewards[self.agent_selection] = piece_score + territory_claimed
         if piece_removed_size != 0:
             self.rewards[self.agent_selection] += piece_removed_size
+            
             self.rewards[self.agents[1 - self.agents.index(self.agent_selection)]] = (
                 -1 * piece_removed_size
             )
@@ -368,11 +371,11 @@ class raw_env(AECEnv):
         if self.render_mode == "human":
             self.render()
         # else:
-        # print(f"Cumulative rewards: {self._cumulative_rewards}, rewards: {self.rewards}")
+            # print(f"Cumulative rewards: {self._cumulative_rewards}, rewards: {self.rewards}")
 
     def reset(self, seed=None, return_info=False, options=None):
         # reset environment
-        self.board = Board()
+        self.board = Board(board_size=self.board_size)
 
         self.agents = self.possible_agents[:]
         self.rewards = {i: 0 for i in self.agents}
@@ -423,7 +426,7 @@ class raw_env(AECEnv):
             self.clock.tick(self.metadata["render_fps"])
 
             # Only render if there is something to render
-            block_size = int(self.WINDOW_WIDTH / 10)  # Set the size of the grid block
+            block_size = int(self.WINDOW_WIDTH / self.board_size)  # Set the size of the grid block
             border_color = (0, 0, 0)
             self.colors = {
                 0: (211, 211, 211),
@@ -442,14 +445,14 @@ class raw_env(AECEnv):
                 for y, y_screen in enumerate(range(0, self.WINDOW_HEIGHT, block_size)):
                     # If space is empty and in a player's territory, color it to mark that it is territory
                     if (
-                        self.board.territory.reshape(10, 10)[x, y] > 0
-                        and self.board.squares.reshape(10, 10)[x, y] == 0
+                        self.board.territory.reshape(self.board_size, self.board_size)[x, y] > 0
+                        and self.board.squares.reshape(self.board_size, self.board_size)[x, y] == 0
                     ):
                         color = self.colors[
-                            self.board.territory.reshape(10, 10)[x, y] + 3
+                            self.board.territory.reshape(self.board_size, self.board_size)[x, y] + 3
                         ]
                     else:
-                        color = self.colors[self.board.squares.reshape(10, 10)[x, y]]
+                        color = self.colors[self.board.squares.reshape(self.board_size, self.board_size)[x, y]]
 
                     if color == self.colors[0]:
                         border = False
@@ -482,8 +485,8 @@ class raw_env(AECEnv):
 
             pygame.display.update()
         elif self.render_mode == "text":
-            print("Board: \n", self.board.squares.reshape(10, 10))
-            print("Territory: \n", self.board.territory.reshape(10, 10))
+            print("Board: \n", self.board.squares.reshape(self.board_size, self.board_size))
+            print("Territory: \n", self.board.territory.reshape(self.board_size, self.board_size))
 
     def close(self):
         if self.render_mode == "human":

@@ -4,16 +4,17 @@ from .pieces import get_pieces
 
 
 class Board:
-    def __init__(self):
+    def __init__(self, board_size=10):
         # 10 rows x 10 columns
         # blank space = 0
         # agent 0 -- 1
         # agent 1 -- 2
         # flat representation in row major order
-
+        self.board_size = board_size
+        # print(f"board size : {board_size}")
         # Main board
         self.squares = np.zeros(
-            100,
+            board_size*board_size,
         )
 
         # Track player territory (values of 1 or 2 indicate player_0 or player_1)
@@ -78,14 +79,14 @@ class Board:
             points[piece] = []
             positions[piece] = []
             rotations[piece] = []
-            for i in range(10):
-                for j in range(10):
+            for i in range(self.board_size):
+                for j in range(self.board_size):
                     for k in range(4):
                         self.pieces[agent][piece].set_position(i, j)
                         self.pieces[agent][piece].set_rotation(90 * k)
                         if np.all(
                             (np.array(self.pieces[agent][piece].points) >= 0)
-                            & (np.array(self.pieces[agent][piece].points) < 10)
+                            & (np.array(self.pieces[agent][piece].points) < self.board_size)
                         ):
                             if (
                                 set(self.pieces[agent][piece].points)
@@ -136,14 +137,14 @@ class Board:
         for (piece, piece_agent, piece_idx) in placed_pieces:
             self.squares = squares_real.copy()  # Reset self.squares to original state
             for coord in piece.points:
-                self.squares.reshape(10, 10)[coord[0], coord[1]] = 0
+                self.squares.reshape(self.board_size, self.board_size)[coord[0], coord[1]] = 0
 
             self.get_territory()
             agent_number = self.possible_agents.index(agent) + 1
 
             if self.territory.max() > 0:
                 agent_territory = np.array(
-                    np.where(self.territory.reshape(10, 10) == agent_number)
+                    np.where(self.territory.reshape(self.board_size, self.board_size) == agent_number)
                 ).T
                 # Convert to list of tuples
                 agent_territory = {(coord[0], coord[1]) for coord in agent_territory}
@@ -171,9 +172,9 @@ class Board:
         self.territory[self.territory < 0] = 0
         self.empty_spaces = [
             (i, j)
-            for i in range(10)
-            for j in range(10)
-            if self.squares.reshape(10, 10)[i, j] == 0
+            for i in range(self.board_size)
+            for j in range(self.board_size)
+            if self.squares.reshape(self.board_size, self.board_size)[i, j] == 0
         ]
         while self.empty_spaces:
             # pick a random empty place
@@ -213,8 +214,8 @@ class Board:
                 new_spaces = [
                     coord
                     for coord in new_spaces
-                    if 0 <= coord[0] < 10
-                    and 0 <= coord[1] < 10
+                    if 0 <= coord[0] < self.board_size
+                    and 0 <= coord[1] < self.board_size
                     and coord not in visited
                     and coord not in queue
                 ]
@@ -224,18 +225,18 @@ class Board:
                 try:
                     # visited.append((x, y)) #
                     # If the current territory is adjacent to something which we already found to be invalid territory
-                    if self.territory.reshape(10, 10)[(x, y)] == -1:
+                    if self.territory.reshape(self.board_size, self.board_size)[(x, y)] == -1:
                         return_val = -1
                         break
                     # If the current territory is adjacent to an already placed piece
-                    if self.squares.reshape(10, 10)[(x, y)] != 0:
+                    if self.squares.reshape(self.board_size, self.board_size)[(x, y)] != 0:
                         # If we have already visited this square, skip it # TODO: find edge cases where this actually happens
                         if (x, y) not in bordering_pieces[
-                            self.squares.reshape(10, 10)[(x, y)]
+                            self.squares.reshape(self.board_size, self.board_size)[(x, y)]
                         ]:
                             # Mark the color of the piece
                             bordering_pieces[
-                                self.squares.reshape(10, 10)[(x, y)]
+                                self.squares.reshape(self.board_size, self.board_size)[(x, y)]
                             ].append((x, y))
 
                             # If it is bordered by more than one piece from each team, then it is not territory
@@ -273,7 +274,7 @@ class Board:
 
             # If this "territory" is larger than half of the board, it is too big
             # However, it is possible for this large territory to be closed later, so don't mark it as invalid
-            elif len(territory) > 10 * 4:
+            elif len(territory) > self.board_size * 4:
                 return_val = -1
 
             # If this territory only borders pieces from a single team, it is valid
@@ -283,7 +284,7 @@ class Board:
                 return_val = 2
 
         for coord in territory:
-            self.territory.reshape(10, 10)[coord] = return_val
+            self.territory.reshape(self.board_size, self.board_size)[coord] = return_val
         return return_val
 
     # Maps an action to its corresponding piece
@@ -335,10 +336,10 @@ class Board:
 
         for coord in points:
             # If the spot is occupied by a player's piece or the cathedral, this move is illegal
-            if self.squares.reshape(10, 10)[coord[0], coord[1]] in [1, 2, 3]:
+            if self.squares.reshape(self.board_size, self.board_size)[coord[0], coord[1]] in [1, 2, 3]:
                 return False
             # Check if territory belongs to other player (player_1 territory: 1, player_2 territory: 2)
-            if self.territory.reshape(10, 10)[coord[0], coord[1]] == opponent_idx + 1:
+            if self.territory.reshape(self.board_size, self.board_size)[coord[0], coord[1]] == opponent_idx + 1:
                 return False
         return True
 
@@ -364,11 +365,11 @@ class Board:
         for coord in points:
             if piece_idx == self.CATHEDRAL_INDEX:
                 # Cathedral is neither team's piece
-                self.squares.reshape(10, 10)[coord[0], coord[1]] = 3
+                self.squares.reshape(self.board_size, self.board_size)[coord[0], coord[1]] = 3
             elif self.possible_agents.index(agent) == 0:
-                self.squares.reshape(10, 10)[coord[0], coord[1]] = 1
+                self.squares.reshape(self.board_size, self.board_size)[coord[0], coord[1]] = 1
             elif self.possible_agents.index(agent) == 1:
-                self.squares.reshape(10, 10)[coord[0], coord[1]] = 2
+                self.squares.reshape(self.board_size, self.board_size)[coord[0], coord[1]] = 2
         return piece.size
 
     def preview_turn(self, agent, action):
@@ -379,13 +380,13 @@ class Board:
 
         for coord in points:
             if piece_idx == self.CATHEDRAL_INDEX:
-                self.squares.reshape(10, 10)[coord[0], coord[1]] = (
+                self.squares.reshape(self.board_size, self.board_size)[coord[0], coord[1]] = (
                     3 + 6
                 )  # Cathedral is neither team's piece
             elif self.possible_agents.index(agent) == 0:
-                self.squares.reshape(10, 10)[coord[0], coord[1]] = 1 + 6
+                self.squares.reshape(self.board_size, self.board_size)[coord[0], coord[1]] = 1 + 6
             elif self.possible_agents.index(agent) == 1:
-                self.squares.reshape(10, 10)[coord[0], coord[1]] = 2 + 6
+                self.squares.reshape(self.board_size, self.board_size)[coord[0], coord[1]] = 2 + 6
         return
 
     # Clear any previous previews
@@ -406,7 +407,7 @@ class Board:
 
         # Mark positions on board as empty
         for coord in piece.points:
-            self.squares.reshape(10, 10)[coord[0], coord[1]] = 0
+            self.squares.reshape(self.board_size, self.board_size)[coord[0], coord[1]] = 0
 
         # Reset piece position
         piece.set_unplaced()
@@ -441,4 +442,4 @@ class Board:
         return pieces_remaining, piece_score
 
     def __str__(self):
-        return str(self.squares.reshape(10, 10).T)  # Lines up with pygame rendering
+        return str(self.squares.reshape(self.board_size, self.board_size).T)  # Lines up with pygame rendering
