@@ -109,6 +109,7 @@ celerybeat.pid
 .env
 .venv
 .RLenv
+model_weights_DQN/
 RLenv/
 env/
 venv/
