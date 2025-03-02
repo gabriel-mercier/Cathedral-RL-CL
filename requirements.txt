@@ -65,3 +65,4 @@ traitlets==5.14.3
 triton==3.2.0
 typing_extensions==4.12.2
 wcwidth==0.2.13
+ray[rllib,tune]==2.43.0

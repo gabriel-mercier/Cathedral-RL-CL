@@ -1,32 +1,21 @@
-# flake8: noqa
+import argparse
+import os
+import sys
 
-"""Example showing how to use "action masking" in RLlib.
-"Action masking" allows the agent to select actions based on the current
-observation. This is useful in many practical scenarios, where different
-actions are available in different time steps.
-Blog post explaining action masking: https://boring-guy.sh/posts/masking-rl/
-RLlib supports action masking, i.e., disallowing these actions based on the
-observation, by slightly adjusting the environment and the model as shown in
-this example.
-Here, the ActionMaskEnv wraps an underlying environment (here, RandomEnv),
-defining only a subset of all actions as valid based on the environment's
-observations. If an invalid action is selected, the environment raises an error
-- this must not happen!
-The environment constructs Dict observations, where obs["observations"] holds
-the original observations and obs["action_mask"] holds the valid actions.
-To avoid selection invalid actions, the ActionMaskModel is used. This model
-takes the original observations, computes the logits of the corresponding
-actions and then sets the logits of all invalid actions to zero, thus disabling
-them. This only works with discrete actions.
----
-Run this example with defaults (using Tune and action masking):
-  $ python action_masking.py
-Then run again without action masking, which will likely lead to errors due to
-invalid actions being selected (ValueError "Invalid action sent to env!"):
-  $ python action_masking.py --no-masking
-Other options for running this example:
-  $ python action_masking.py --help
-"""
+import ray
+from ray import air, tune
+from ray.rllib.algorithms import ppo
+from ray.rllib.env import PettingZooEnv
+from ray.tune import register_env
+from ray.tune.logger import pretty_print
+
+import numpy as np
+
+from ray.rllib.algorithms.ppo import PPOConfig
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
+from cathedral_rl import cathedral_v0
 
 import argparse
 import os
@@ -35,11 +24,11 @@ import ray
 from ray import air, tune
 from ray.rllib.algorithms import ppo
 from ray.rllib.env import PettingZooEnv
-from ray.rllib.examples.env.action_mask_env import ActionMaskEnv
-from ray.rllib.examples.models.action_mask_model import (
+from ray.rllib.examples._old_api_stack.models.action_mask_model import (
     ActionMaskModel,
     TorchActionMaskModel,
 )
+from ray.rllib.policy.policy import PolicySpec
 from ray.tune import register_env
 from ray.tune.logger import pretty_print
 
@@ -63,8 +52,8 @@ def get_cli_args():
     parser.add_argument("--num-cpus", type=int, default=0)
     parser.add_argument(
         "--framework",
-        choices=["tf", "tf2", "torch"],
-        default="tf",
+        choices=["tf2", "torch"],
+        default="torch",
         help="The DL framework specifier.",
     )
     parser.add_argument("--eager-tracing", action="store_true")
@@ -99,6 +88,20 @@ def get_cli_args():
     print(f"Running with following CLI args: {args}")
     return args
 
+def action_mask_policy(observation, model):
+    """Policy function that considers the action mask."""
+    action_mask = observation["action_mask"]
+    
+    # Get model output (action probabilities or Q-values)
+    logits = model(observation["obs"])  # Shape (num_actions,)
+    
+    # Mask out illegal actions by setting their logits to a very negative value
+    logits = logits * action_mask + (1 - action_mask) * -float("inf")
+    
+    # Select the action with the highest logit (highest probability for legal moves)
+    action = np.argmax(logits)
+    
+    return action
 
 if __name__ == "__main__":
     args = get_cli_args()
@@ -106,74 +109,86 @@ if __name__ == "__main__":
     ray.init(num_cpus=args.num_cpus or None, local_mode=args.local_mode)
 
     def env_creator(args):
-        return PettingZooEnv(cathedral_v0.env())
+        env = cathedral_v0.env()
+        env = PettingZooEnv(env)
+        print(env.observation_space)
+        return env
 
     env = env_creator({})
     register_env("cathedral", env_creator)
+    
+    def policy_mapping_fn(agent_id, episode=None, worker=None):
+        return agent_id
 
-    # main part: configure the ActionMaskEnv and ActionMaskModel
+    print(f'observation space of player 1 {env.observation_space["player_1"]}')
+    # Configure the PPO algorithm
     config = (
-        ppo.PPOConfig()
+        PPOConfig()
         .environment("cathedral")
-        .training(
-            # the ActionMaskModel retrieves the invalid actions and avoids them
-            model={
-                "custom_model": ActionMaskModel
-                if args.framework != "torch"
-                else TorchActionMaskModel,
-                # disable action masking according to CLI
-                "custom_model_config": {"no_masking": args.no_masking},
-            },
-        )
         .framework(args.framework, eager_tracing=args.eager_tracing)
-        .resources(
-            # Use GPUs iff `RLLIB_NUM_GPUS` env var set to > 0.
-            num_gpus=int(os.environ.get("RLLIB_NUM_GPUS", "0"))
+        .resources(num_gpus=1)
+        .multi_agent(
+            policies={
+                "player_0": PolicySpec(
+                    action_space=env.action_space["player_0"],
+                    observation_space=env.observation_space["player_0"],
+                    # No need to use a custom model here, use the default RLlib model
+                ),
+                "player_1": PolicySpec(
+                    action_space=env.action_space["player_1"],
+                    observation_space=env.observation_space["player_1"],
+                    # No need to use a custom model here, use the default RLlib model
+                ),
+                
+            },
+            policy_mapping_fn=policy_mapping_fn
         )
+        .api_stack(enable_rl_module_and_learner=False, enable_env_runner_and_connector_v2=False)
+        
     )
-
+    
     stop = {
         "training_iteration": args.stop_iters,
         "timesteps_total": args.stop_timesteps,
         "episode_reward_mean": args.stop_reward,
     }
 
-    # manual training loop (no Ray tune)
+    # Manual training loop (no Ray tune)
     if args.no_tune:
         if args.run not in {"APPO", "PPO"}:
             raise ValueError("This example only supports APPO and PPO.")
 
-        algo = config.build()
+        algo = config.build_algo()
 
-        # run manual training loop and print results after each iteration
+        # Run manual training loop and print results after each iteration
         for _ in range(args.stop_iters):
             result = algo.train()
             print(pretty_print(result))
-            # stop training if the target train steps or reward are reached
+            # Stop training if the target train steps or reward are reached
             if (
                 result["timesteps_total"] >= args.stop_timesteps
-                or result["episode_reward_mean"] >= args.stop_reward
+                or result["env_runners"]["episode_reward_mean"] >= args.stop_reward
             ):
                 break
 
-        # manual test loop
+        # Manual test loop
         print("Finished training. Running manual test/inference loop.")
-        # prepare environment with max 10 steps
+        # Prepare environment with max 10 steps
         config["env_config"]["max_episode_len"] = 10
-        env = ActionMaskEnv(config["env_config"])
+        env = env_creator({})
         obs, info = env.reset()
         done = False
-        # run one iteration until done
+        # Run one iteration until done
         print(f"ActionMaskEnv with {config['env_config']}")
         while not done:
             action = algo.compute_single_action(obs)
             next_obs, reward, done, truncated, _ = env.step(action)
-            # observations contain original observations and the action mask
-            # reward is random and irrelevant here and therefore not printed
+            # Observations contain original observations and the action mask
+            # Reward is random and irrelevant here and therefore not printed
             print(f"Obs: {obs}, Action: {action}")
             obs = next_obs
 
-    # run with tune for auto trainer creation, stopping, TensorBoard, etc.
+    # Run with tune for auto trainer creation, stopping, TensorBoard, etc.
     else:
         tuner = tune.Tuner(
             args.run,

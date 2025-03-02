@@ -141,7 +141,7 @@ class raw_env(AECEnv):
         self.observation_spaces = {
             i: spaces.Dict(
                 {
-                    "observation": spaces.Box(
+                    "obs": spaces.Box(
                         low=0, high=1, shape=(self.board_size, self.board_size, 5), dtype=np.int8
                     ),
                     "action_mask": spaces.Box(
@@ -198,7 +198,7 @@ class raw_env(AECEnv):
             if i in legal_moves:
                 action_mask[i] = 1
 
-        return {"observation": observation, "action_mask": action_mask}
+        return {"obs": observation, "action_mask": action_mask}
 
     # this cache ensures that same space object is returned for the same agent
     # allows action space seeding to work as expected
