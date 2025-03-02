@@ -11,3 +11,7 @@ Interactive Multi-Agent Reinforcement Learning Environment for the board game Ca
     &nbsp; &nbsp; &nbsp; &nbsp;
     <img alt="Cathedral-rl game rendered with Pygame" src="assets/cathedral_screenshot.jpg" width="45%">
 </h1>
+
+## Installation instructions 
+
+Ideally use python 3.12.8 or any other version of python 3.12. Create a venv or a conda environment with the requirements.txt file. 
