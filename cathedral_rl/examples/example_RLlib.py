@@ -45,7 +45,6 @@ from ray.tune.logger import pretty_print
 
 from cathedral_rl import cathedral_v0
 
-
 def get_cli_args():
     """Create CLI parser and return parsed arguments"""
     parser = argparse.ArgumentParser()
