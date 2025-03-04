@@ -1,0 +1,6 @@
+K_epochs = 40               # update policy for K epochs
+eps_clip = 0.2              # clip parameter for PPO
+gamma = 0.95                # discount factor
+
+lr_actor = 0.05       # learning rate for actor network
+lr_critic = 0.02

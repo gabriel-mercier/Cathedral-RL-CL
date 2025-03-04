@@ -444,11 +444,11 @@ class Board:
                 piece_score[agent] += self.pieces[agent][piece_idx].size
                 pieces_remaining[agent].append(self.pieces[agent][piece_idx])
         
-            print(f"Agent {agent}: {len(pieces_remaining[agent])} pieces remaining with total size {piece_score[agent]}")
+            #print(f"Agent {agent}: {len(pieces_remaining[agent])} pieces remaining with total size {piece_score[agent]}")
             
             # Optionally, print details about each piece
-            if len(pieces_remaining[agent]) > 0:
-                print(f"  Pieces: {[piece.size for piece in pieces_remaining[agent]]}")
+            #if len(pieces_remaining[agent]) > 0:
+                #print(f"  Pieces: {[piece.size for piece in pieces_remaining[agent]]}")
             
         return pieces_remaining, piece_score
 
