@@ -299,11 +299,11 @@ class raw_env(AECEnv):
             # self.score["remaining_pieces"]
         else:
             if winner == 0:
-                self.rewards[self.agents[0]] = 10
-                self.rewards[self.agents[1]] = -10
+                self.rewards[self.agents[0]] = 1
+                self.rewards[self.agents[1]] = -1
             elif winner == 1:
-                self.rewards[self.agents[0]] = -10
-                self.rewards[self.agents[1]] = 10
+                self.rewards[self.agents[0]] = -1
+                self.rewards[self.agents[1]] = 1
             else:
                 self.rewards[self.agents[0]] = 0
                 self.rewards[self.agents[1]] = 0
@@ -313,6 +313,65 @@ class raw_env(AECEnv):
         self.piece_score = piece_score
         self.terminations = {i: True for i in self.agents}
         self.agents = []
+
+    def next_step(self, state, action, agent):
+        if (
+            self.truncations[agent]
+            or self.terminations[agent]
+        ):
+
+            return self._was_dead_step(action)
+
+        # Check that it is a valid move
+        if not self.board.is_legal(agent, action):
+            raise Exception("played illegal move.")
+
+        # Play the turn
+        piece_size = self.board.play_turn(agent, action)
+        territory_claimed, piece_removed_size = self.board.check_territory(
+            agent
+        )
+
+        # Don't count placing the cathedral as a turn (only count placing regular pieces)
+        if piece_size != 6:
+            self.turns[self.agent_selection] += 1
+
+        if self.per_move_rewards:
+            self._calculate_rewards(
+                piece_size, territory_claimed, piece_removed_size
+            )  # Heuristic reward for current move
+        self._accumulate_rewards()
+
+        # Calculate score heuristics every other turn (when both agents have placed the same number of pieces)
+        if self.turns[self.agents[0]] == self.turns[self.agents[1]]:
+            self._calculate_score()
+
+        next_agent = self._agent_selector.next()
+
+        # If the next agent has legal moves to play, switch agents
+        self._calculate_legal_moves(next_agent)
+        if len(self.legal_moves[next_agent]) != 0:
+            self.agent_selection = next_agent
+
+        # If both agents have zero moves left (game over), calculate winners
+        else:
+            self._calculate_legal_moves(self.agent_selection)
+            if len(self.legal_moves[self.agent_selection]) == 0:
+                self._calculate_score()  # Calculate score heuristics (even if one agent has played more turns)
+                self._calculate_winner()
+                # print("GAME OVER")
+                # return self._was_dead_step(action)
+
+            # If the next agent has no legal moves left, current agent continues placing pieces
+            else:
+                # print(f"{next_agent} out of moves, {self.agent_selection} continues placing")
+                if len(self.legal_moves[self.agent_selection]) == 0:
+                    self.terminations[self.agent_selection] = True
+
+        if self.render_mode == "human":
+            self.render()
+        # else:
+            # print(f"Cumulative rewards: {self._cumulative_rewards}, rewards: {self.rewards}")
 
     def step(self, action):
         if (
