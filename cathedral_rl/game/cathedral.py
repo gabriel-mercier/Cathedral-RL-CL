@@ -1,30 +1,5 @@
 # noqa
 """
-# Connect Four
-
-```{figure} classic_connect_four.gif
-:width: 140px
-:name: connect_four
-```
-
-This environment is part of the <a href='..'>classic environments</a>. Please read that page first for general information.
-
-| Import             | `from pettingzoo.classic import connect_four_v3` |
-|--------------------|--------------------------------------------------|
-| Actions            | Discrete                                         |
-| Parallel API       | Yes                                              |
-| Manual Control     | Yes                                              |
-| Agents             | `agents= ['player_0', 'player_1']`               |
-| Agents             | 2                                                |
-| Action Shape       | (1,)                                             |
-| Action Values      | Discrete(7)                                      |
-| Observation Shape  | (6, 7, 2)                                        |
-| Observation Values | [0,1]                                            |
-
-
-Connect Four is a 2-player turn based game, where players must connect four of their tokens vertically, horizontally or diagonally. The players drop their respective token in a column of a standing grid, where each token will fall until it reaches the bottom of the column or reaches an existing
-token. Players cannot place a token in a full column, and the game ends when either a player has made a sequence of 4 tokens, or when all 7 columns have been filled.
-
 ### Observation Space
 
 The observation is a dictionary which contains an `'observation'` element which is the usual RL observation described below, and an  `'action_mask'` which holds the legal moves, described in the Legal Actions Mask section.
@@ -131,9 +106,13 @@ class raw_env(AECEnv):
             self.WINDOW_WIDTH, self.WINDOW_HEIGHT = self.window.get_size()
 
         self.board = Board(board_size=self.board_size)
-
+        
         self.agents = ["player_0", "player_1"]
+            
         self.possible_agents = self.agents[:]
+        
+        self.episode_count = 0
+        
 
         self.action_spaces = {
             i: spaces.Discrete(self.board.num_actions) for i in self.agents
@@ -295,15 +274,15 @@ class raw_env(AECEnv):
         winner, pieces_remaining, piece_score = self.board.check_for_winner()
         if self.final_reward_score_difference:
             self._calculate_score()
-            # self.rewards[self.agents[0]] =
-            # self.score["remaining_pieces"]
+            self.rewards[self.agents[0]] = - piece_score[self.agents[0]]
+            self.rewards[self.agents[1]] = - piece_score[self.agents[1]]
         else:
             if winner == 0:
-                self.rewards[self.agents[0]] = 10
-                self.rewards[self.agents[1]] = -10
+                self.rewards[self.agents[0]] = 1
+                self.rewards[self.agents[1]] = -1
             elif winner == 1:
-                self.rewards[self.agents[0]] = -10
-                self.rewards[self.agents[1]] = 10
+                self.rewards[self.agents[0]] = -1
+                self.rewards[self.agents[1]] = 1
             else:
                 self.rewards[self.agents[0]] = 0
                 self.rewards[self.agents[1]] = 0
@@ -377,7 +356,11 @@ class raw_env(AECEnv):
         # reset environment
         self.board = Board(board_size=self.board_size)
 
+        self.episode_count += 1
+
+            
         self.agents = self.possible_agents[:]
+        
         self.rewards = {i: 0 for i in self.agents}
         self._cumulative_rewards = {name: 0 for name in self.agents}
         self.terminations = {i: False for i in self.agents}

@@ -421,14 +421,18 @@ class Board:
         pieces_remaining, piece_score = self.get_score()
 
         # Lowest total size of remaining pieces wins
-        if piece_score[self.possible_agents[0]] < piece_score[self.possible_agents[1]]:
+        score_player_0 = piece_score[self.possible_agents[0]]
+        score_player_1 = piece_score[self.possible_agents[1]]
+        print(f'score player 0 {score_player_0} and player 1 {score_player_1}')
+        if score_player_0 < score_player_1:
             winner = 0
         elif (
-            piece_score[self.possible_agents[0]] > piece_score[self.possible_agents[1]]
+            score_player_0 > score_player_1
         ):
             winner = 1
         else:
             winner = -1
+        print(f'winner {winner}')
         return winner, pieces_remaining, piece_score
 
     # Returns list of pieces remaining and total number of points occupied by those pieces (piece score)
@@ -439,6 +443,13 @@ class Board:
             for piece_idx in self.unplaced_pieces[agent]:
                 piece_score[agent] += self.pieces[agent][piece_idx].size
                 pieces_remaining[agent].append(self.pieces[agent][piece_idx])
+        
+            print(f"Agent {agent}: {len(pieces_remaining[agent])} pieces remaining with total size {piece_score[agent]}")
+            
+            # Optionally, print details about each piece
+            if len(pieces_remaining[agent]) > 0:
+                print(f"  Pieces: {[piece.size for piece in pieces_remaining[agent]]}")
+            
         return pieces_remaining, piece_score
 
     def __str__(self):
