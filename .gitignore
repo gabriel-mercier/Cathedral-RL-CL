@@ -138,3 +138,5 @@ dmypy.json
 # Pygbag & Pygame WASM
 *-pygbag.???
 *.pyc
+
+/model_weights_PPO
