@@ -46,3 +46,4 @@ Currently, MCTS is not functional (still in debugging phase).
 You can explore the architecture we aim to implement, but running it at this stage is not recommended as it will not produce meaningful results.
 
 ### PPO
+  Running is possible in the associated notebook. One can choose to train against a random opponent or self-play. 
