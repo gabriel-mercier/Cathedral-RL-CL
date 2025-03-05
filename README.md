@@ -41,7 +41,7 @@ Before training, create an empty folder named `model_weights_DQN` to store metri
 Then, run the associated Jupyter Notebook.
 You can adjust the hyperparameters in the designated cell before starting the training.
 
-### MCTS
+### MCTS (Monte Carlo Tree Search)
 Currently, MCTS is not functional (still in debugging phase).
 You can explore the architecture we aim to implement, but running it at this stage is not recommended as it will not produce meaningful results.
 
