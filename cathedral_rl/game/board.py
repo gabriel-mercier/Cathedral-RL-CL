@@ -4,7 +4,7 @@ from .pieces import get_pieces
 
 
 class Board:
-    def __init__(self, board_size=10):
+    def __init__(self, players, board_size=10):
         # 10 rows x 10 columns
         # blank space = 0
         # agent 0 -- 1
@@ -21,13 +21,15 @@ class Board:
         self.territory = self.squares.copy()
         self.territory[self.territory > 0] = 0
 
-        self.possible_agents = ["player_0", "player_1"]
+        self.possible_agents = players
 
         # Piece objects
         self.pieces = {self.possible_agents[i]: get_pieces(i) for i in range(2)}
+        #print(self.pieces)
+        first_player = self.possible_agents[0] 
         self.piece_names = [
-            self.pieces["player_0"][piece].label
-            for piece in range(len(self.pieces["player_0"]))
+            self.pieces[first_player][piece].label
+            for piece in range(len(self.pieces[first_player]))
         ]
         self.num_pieces = len(self.piece_names)
         self.total_piece_squares = sum(
@@ -60,8 +62,8 @@ class Board:
 
         # Get the total number of actions involving a given piece, using the pre-calculated points dict
         self.num_actions_per_piece = [
-            len(self.points["player_0"][piece])
-            for piece in self.points["player_0"].keys()
+            len(self.points[first_player][piece])
+            for piece in self.points[first_player].keys()
         ]
         # Calculates indices for each piece (for action to piece mapping). Shape: [num_pieces,]
         self.piece_indices = [
@@ -130,13 +132,22 @@ class Board:
             for i, piece in enumerate(self.pieces[opponent])
             if piece.is_placed()
         ]
-        if agent == "player_0" and self.pieces["player_0"][14].is_placed():
-            placed_pieces.append((self.pieces[agent][14], agent, 14))
+        cathedral_already_added = any(piece_idx == 14 for _, _, piece_idx in placed_pieces)
+
+        # Add cathedral only if not already in the list
+        if not cathedral_already_added:
+            if "player_0" in self.pieces and len(self.pieces["player_0"]) > 14 and self.pieces["player_0"][14].is_placed():
+                placed_pieces.append((self.pieces["player_0"][14], "player_0", 14))
+            elif "player_1" in self.pieces and len(self.pieces["player_1"]) > 14 and self.pieces["player_1"][14].is_placed():
+                placed_pieces.append((self.pieces["player_1"][14], "player_1", 14))
 
         # Look through opponent pieces (and the cathedral) and try removing them
-        for (piece, piece_agent, piece_idx) in placed_pieces:
+        for (piece, piece_agent, piece_idx) in placed_pieces.copy() :
             self.squares = squares_real.copy()  # Reset self.squares to original state
+            #print(f"Processing piece: {piece_idx} from {piece_agent}")
+            #print(f"Piece points: {piece.points}")
             for coord in piece.points:
+                #print(f"Checking coordinate: {coord}")
                 self.squares.reshape(self.board_size, self.board_size)[coord[0], coord[1]] = 0
 
             self.get_territory()
