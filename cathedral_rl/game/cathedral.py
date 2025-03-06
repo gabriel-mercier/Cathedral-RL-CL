@@ -84,7 +84,7 @@ def env(board_size=10, render_mode=None, per_move_rewards=False, final_reward_sc
         per_move_rewards=per_move_rewards,
         final_reward_score_difference=final_reward_score_difference,
     )
-    env = wrappers.TerminateIllegalWrapper(env, illegal_reward=-1)
+    env = wrappers.TerminateIllegalWrapper(env, illegal_reward=-20)
     env = wrappers.AssertOutOfBoundsWrapper(env)
     env = wrappers.OrderEnforcingWrapper(env)
     return env
@@ -380,6 +380,8 @@ class raw_env(AECEnv):
         ):
 
             return self._was_dead_step(action)
+        
+        print("I AM CALLED AS A STEP")
 
         # Check that it is a valid move
         if not self.board.is_legal(self.agent_selection, action):
@@ -406,16 +408,21 @@ class raw_env(AECEnv):
             self._calculate_score()
 
         next_agent = self._agent_selector.next()
+        print("NEXT AGENT", next_agent)
 
         # If the next agent has legal moves to play, switch agents
         self._calculate_legal_moves(next_agent)
         if len(self.legal_moves[next_agent]) != 0:
+            print("next agent has legal moves to play, switch agents")
             self.agent_selection = next_agent
+            print("AGENT SELECTION has been set to ", self.agent_selection)
 
         # If both agents have zero moves left (game over), calculate winners
         else:
+            print("next agent has no legal moves to play")
             self._calculate_legal_moves(self.agent_selection)
             if len(self.legal_moves[self.agent_selection]) == 0:
+                print("both agents have zero moves left (game over), calculate winners")
                 self._calculate_score()  # Calculate score heuristics (even if one agent has played more turns)
                 self._calculate_winner()
                 # print("GAME OVER")
@@ -423,7 +430,7 @@ class raw_env(AECEnv):
 
             # If the next agent has no legal moves left, current agent continues placing pieces
             else:
-                # print(f"{next_agent} out of moves, {self.agent_selection} continues placing")
+                print(f"{next_agent} out of moves, {self.agent_selection} continues placing")
                 if len(self.legal_moves[self.agent_selection]) == 0:
                     self.terminations[self.agent_selection] = True
 
