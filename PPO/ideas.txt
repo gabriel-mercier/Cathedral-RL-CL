@@ -1,0 +1,6 @@
+CNN for PPO
+Larger network ?
+Alterner player 0 et player 1
+Representation Learning (training a VAE) on boards
+
+Remettre +10/-10
