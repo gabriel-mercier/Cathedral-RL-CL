@@ -299,11 +299,11 @@ class raw_env(AECEnv):
             # self.score["remaining_pieces"]
         else:
             if winner == 0:
-                self.rewards[self.agents[0]] = 10
-                self.rewards[self.agents[1]] = -10
+                self.rewards[self.agents[0]] = 1
+                self.rewards[self.agents[1]] = -1
             elif winner == 1:
-                self.rewards[self.agents[0]] = -10
-                self.rewards[self.agents[1]] = 10
+                self.rewards[self.agents[0]] = -1
+                self.rewards[self.agents[1]] = 1
             else:
                 self.rewards[self.agents[0]] = 0
                 self.rewards[self.agents[1]] = 0
