@@ -300,6 +300,7 @@ class raw_env(AECEnv):
             # self.rewards[self.agents[0]] =
             # self.score["remaining_pieces"]
         else:
+            print(f'agents {self.agents} and possible agents {self.board.possible_agents}')
             if winner == 0:
                 self.rewards[self.agents[0]] = 10
                 self.rewards[self.agents[1]] = -10
