@@ -300,7 +300,6 @@ class raw_env(AECEnv):
             # self.rewards[self.agents[0]] =
             # self.score["remaining_pieces"]
         else:
-            print(f'agents {self.agents} and possible agents {self.board.possible_agents}')
             if winner == 0:
                 self.rewards[self.agents[0]] = 10
                 self.rewards[self.agents[1]] = -10
@@ -447,7 +446,7 @@ class raw_env(AECEnv):
             # reset environment
         self.board = Board(board_size=self.board_size, players=self.agents)
         
-        print(f'reset, agents are {self.agents}')
+        #print(f'reset, agents are {self.agents}')
         self.rewards = {i: 0 for i in self.agents}
         self._cumulative_rewards = {name: 0 for name in self.agents}
         self.terminations = {i: False for i in self.agents}
@@ -564,3 +563,5 @@ class raw_env(AECEnv):
 
             pygame.quit()
             self.screen = None
+            
+

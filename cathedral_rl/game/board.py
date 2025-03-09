@@ -432,7 +432,7 @@ class Board:
         pieces_remaining, piece_score = self.get_score()
 
         # Lowest total size of remaining pieces wins
-        print(f' agent {self.possible_agents[0]}, score {piece_score[self.possible_agents[0]]}, agent {self.possible_agents[1]} score {piece_score[self.possible_agents[1]]}')
+        #print(f' agent {self.possible_agents[0]}, score {piece_score[self.possible_agents[0]]}, agent {self.possible_agents[1]} score {piece_score[self.possible_agents[1]]}')
         if piece_score[self.possible_agents[0]] < piece_score[self.possible_agents[1]]:
             winner = 0
         elif (
@@ -441,7 +441,7 @@ class Board:
             winner = 1
         else:
             winner = -1
-        print(f'Winner {winner}')
+        #print(f'Winner {winner}')
         return winner, pieces_remaining, piece_score
 
     # Returns list of pieces remaining and total number of points occupied by those pieces (piece score)
