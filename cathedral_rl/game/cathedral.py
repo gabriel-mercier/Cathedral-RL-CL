@@ -130,10 +130,11 @@ class raw_env(AECEnv):
             self.clock = pygame.time.Clock()
             self.WINDOW_WIDTH, self.WINDOW_HEIGHT = self.window.get_size()
 
-        self.board = Board(board_size=self.board_size)
 
         self.agents = ["player_0", "player_1"]
         self.possible_agents = self.agents[:]
+        
+        self.board = Board(board_size=self.board_size, players= self.agents)
 
         self.action_spaces = {
             i: spaces.Discrete(self.board.num_actions) for i in self.agents
@@ -190,7 +191,7 @@ class raw_env(AECEnv):
         # If this is the first observation, calculate legal moves, otherwise this is done every step
         if len(self.legal_moves[agent]) == 0:
             self._calculate_legal_moves(agent)
-
+            
         legal_moves = self.legal_moves[agent] if agent == self.agent_selection else []
 
         action_mask = np.zeros(self.action_space(agent).n, dtype=np.int8)
@@ -212,6 +213,7 @@ class raw_env(AECEnv):
 
     # Calculate the number of legal moves per agent, legal moves per piece, and legal pieces to be played
     def _calculate_legal_moves(self, agent):
+        #print(f'Calculating legal moves of {agent}')
         legal_moves = []
         self.legal_moves_per_piece[agent] = np.zeros(self.board.num_pieces)
 
@@ -299,11 +301,11 @@ class raw_env(AECEnv):
             # self.score["remaining_pieces"]
         else:
             if winner == 0:
-                self.rewards[self.agents[0]] = 1
-                self.rewards[self.agents[1]] = -1
+                self.rewards[self.agents[0]] = 10
+                self.rewards[self.agents[1]] = -10
             elif winner == 1:
-                self.rewards[self.agents[0]] = -1
-                self.rewards[self.agents[1]] = 1
+                self.rewards[self.agents[0]] = -10
+                self.rewards[self.agents[1]] = 10
             else:
                 self.rewards[self.agents[0]] = 0
                 self.rewards[self.agents[1]] = 0
@@ -390,6 +392,7 @@ class raw_env(AECEnv):
         territory_claimed, piece_removed_size = self.board.check_territory(
             self.agent_selection
         )
+        #print(f'Step by agent {self.agent_selection} piece size {piece_size}')
 
         # Don't count placing the cathedral as a turn (only count placing regular pieces)
         if piece_size != 6:
@@ -433,10 +436,17 @@ class raw_env(AECEnv):
             # print(f"Cumulative rewards: {self._cumulative_rewards}, rewards: {self.rewards}")
 
     def reset(self, seed=None, return_info=False, options=None):
-        # reset environment
-        self.board = Board(board_size=self.board_size)
 
-        self.agents = self.possible_agents[:]
+        random = np.random.random()
+        if random < 0.5 :
+            self.agents = self.possible_agents[:]
+        else :
+            self.agents = [self.possible_agents[1], self.possible_agents[0]]
+            
+            # reset environment
+        self.board = Board(board_size=self.board_size, players=self.agents)
+        
+        #print(f'reset, agents are {self.agents}')
         self.rewards = {i: 0 for i in self.agents}
         self._cumulative_rewards = {name: 0 for name in self.agents}
         self.terminations = {i: False for i in self.agents}
@@ -553,3 +563,5 @@ class raw_env(AECEnv):
 
             pygame.quit()
             self.screen = None
+            
+
