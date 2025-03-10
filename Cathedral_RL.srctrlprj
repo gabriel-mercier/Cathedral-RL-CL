@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<config>
+    <source_groups>
+        <source_group_e5649543-f95a-4fa4-bc50-b73581c24ba4>
+            <name>Python Source Group</name>
+            <python_environment_path>venv/Scripts</python_environment_path>
+            <source_extensions>
+                <source_extension>.py</source_extension>
+            </source_extensions>
+            <source_paths>
+                <source_path>cathedral_rl</source_path>
+            </source_paths>
+            <status>enabled</status>
+            <type>Python Source Group</type>
+        </source_group_e5649543-f95a-4fa4-bc50-b73581c24ba4>
+    </source_groups>
+    <version>8</version>
+</config>
