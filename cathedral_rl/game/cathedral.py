@@ -74,8 +74,6 @@ from pettingzoo import AECEnv
 from pettingzoo.utils import wrappers
 from pettingzoo.utils.wrappers.base import BaseWrapper
 from pettingzoo.utils.agent_selector import agent_selector
-from pettingzoo.utils.env import ActionType, AECEnv, AgentID, ObsType
-from pettingzoo.utils.env_logger import EnvLogger
 
 
 from .board import Board
@@ -88,10 +86,9 @@ def env(board_size=10, render_mode=None, per_move_rewards=False, final_reward_sc
         per_move_rewards=per_move_rewards,
         final_reward_score_difference=final_reward_score_difference,
     ) 
-    env = TerminateIllegalWrapper(env, illegal_reward=-20)
+    env = wrappers.TerminateIllegalWrapper(env, illegal_reward=-20)
     env = wrappers.AssertOutOfBoundsWrapper(env)
     env = wrappers.OrderEnforcingWrapper(env)
-    env = LoggingWrapper(env)  
     return env
 
 
@@ -385,8 +382,6 @@ class raw_env(AECEnv):
         ):
 
             return self._was_dead_step(action)
-        
-        print("I AM CALLED AS A STEP")
 
         # Check that it is a valid move
         if not self.board.is_legal(self.agent_selection, action):
@@ -413,21 +408,16 @@ class raw_env(AECEnv):
             self._calculate_score()
 
         next_agent = self._agent_selector.next()
-        print("NEXT AGENT", next_agent)
 
         # If the next agent has legal moves to play, switch agents
         self._calculate_legal_moves(next_agent)
         if len(self.legal_moves[next_agent]) != 0:
-            print("next agent has legal moves to play, switch agents")
             self.agent_selection = next_agent
-            print("AGENT SELECTION has been set to ", self.agent_selection)
 
         # If both agents have zero moves left (game over), calculate winners
         else:
-            print("next agent has no legal moves to play")
             self._calculate_legal_moves(self.agent_selection)
             if len(self.legal_moves[self.agent_selection]) == 0:
-                print("both agents have zero moves left (game over), calculate winners")
                 self._calculate_score()  # Calculate score heuristics (even if one agent has played more turns)
                 self._calculate_winner()
                 # print("GAME OVER")
@@ -435,7 +425,6 @@ class raw_env(AECEnv):
 
             # If the next agent has no legal moves left, current agent continues placing pieces
             else:
-                print(f"{next_agent} out of moves, {self.agent_selection} continues placing")
                 if len(self.legal_moves[self.agent_selection]) == 0:
                     self.terminations[self.agent_selection] = True
 
@@ -565,105 +554,3 @@ class raw_env(AECEnv):
 
             pygame.quit()
             self.screen = None
-
-class LoggingWrapper(wrappers.BaseWrapper):
-    def step(self, action):
-        # Log current agent and action
-        # print(f"[LOG] Current agent: {self.env.agent_selection}")
-        # print(f"[LOG] Action taken: {action}")
-        
-        # Get the observation for the current agent.
-        # Note: This might trigger an observe call if not already set.
-        obs = self.env.observe(self.env.agent_selection)
-        # print(f"[LOG] Observation: {obs}")
-        
-        # Log termination/truncation flags
-        # print(f"[LOG] Terminations: {self.env.terminations}")
-        # print(f"[LOG] Truncations: {self.env.truncations}")
-        
-        # Call the underlying step
-        return self.env.step(action)
-    
-    def reset(self, **kwargs):
-        return self.env.reset(**kwargs)
-
-class TerminateIllegalWrapper(BaseWrapper[AgentID, ObsType, ActionType]):
-    """This wrapper terminates the game with the current player losing in case of illegal values.
-
-    Args:
-        illegal_reward: number that is the value of the player making an illegal move.
-    """
-
-    def __init__(
-        self, env: AECEnv[AgentID, ObsType, ActionType], illegal_reward: float
-    ):
-        super().__init__(env)
-        self._illegal_value = illegal_reward
-        self._prev_obs = None
-        self._prev_info = None
-
-    def reset(self, seed: int | None = None, options: dict | None = None) -> None:
-        self._terminated = False
-        self._prev_obs = None
-        self._prev_info = None
-        super().reset(seed=seed, options=options)
-
-    def observe(self, agent: AgentID) -> ObsType | None:
-        obs = super().observe(agent)
-        if agent == self.agent_selection:
-            self._prev_obs = obs
-            if self.agent_selection in self.infos:
-                self._prev_info = self.infos[self.agent_selection]
-            else:
-                self._prev_info = {}
-        return obs
-
-    def step(self, action: ActionType) -> None:
-        current_agent = self.agent_selection
-        if self._prev_obs is None:
-            self.observe(self.agent_selection)
-        if isinstance(self._prev_obs, dict):
-            assert self._prev_obs is not None
-            assert (
-                "action_mask" in self._prev_obs
-            ), f"`action_mask` not found in dictionary observation: {self._prev_obs}. Action mask must either be in `observation['action_mask']` or `info['action_mask']` to use TerminateIllegalWrapper."
-            _prev_action_mask = self._prev_obs["action_mask"]
-
-        else:
-            assert self._prev_info is not None
-            assert (
-                "action_mask" in self._prev_info
-            ), f"`action_mask` not found in info for non-dictionary observation: {self._prev_info}. Action mask must either be in observation['action_mask'] or info['action_mask'] to use TerminateIllegalWrapper."
-            _prev_action_mask = self._prev_info["action_mask"]
-        self._prev_obs = None
-        self._prev_info = None
-        if self._terminated and (
-            self.terminations[self.agent_selection]
-            or self.truncations[self.agent_selection]
-        ):
-            self._was_dead_step(action)  # pyright: ignore[reportGeneralTypeIssues]
-        elif (
-            not self.terminations[self.agent_selection]
-            and not self.truncations[self.agent_selection]
-            and not _prev_action_mask[action]
-        ):
-            EnvLogger.warn_on_illegal_move()
-            self.env.unwrapped._cumulative_rewards[self.agent_selection] = 0
-            self.env.unwrapped.terminations = {d: True for d in self.agents}
-            self.env.unwrapped.truncations = {d: True for d in self.agents}
-            self._prev_obs = None
-            self._prev_info = None
-            self.env.unwrapped.rewards = {d: 0 for d in self.terminations}
-            self.env.unwrapped.rewards[current_agent] = float(self._illegal_value)
-            self._accumulate_rewards()
-            self.env.unwrapped.last_final_reward = self.env.unwrapped.rewards[current_agent]
-            # Immediately enforce termination:
-            self._was_dead_step(None)
-            self._terminated = True
-            #   Optionally, raise a custom exception to stop further steps.
-            # raise StopIteration("Episode terminated due to illegal action")
-        else:
-            super().step(action)
-
-    def __str__(self) -> str:
-        return str(self.env)
