@@ -87,6 +87,7 @@ profile_default/
 ipython_config.py
 
 # pyenv
+.conda
 .python-version
 
 # pipenv
@@ -149,3 +150,5 @@ dmypy.json
 /PPO/model_weights_random_PPO
 
 /PPO/game_recordings
+
+results_DQN/models

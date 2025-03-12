@@ -120,14 +120,26 @@ class raw_env(AECEnv):
 
         # Pygame setup
         if render_mode == "human":
+            # pygame.init()
+            # self.clock = pygame.time.Clock
+            # self.WINDOW_WIDTH = 1000
+            # self.WINDOW_HEIGHT = 1000
+            # self.window = pygame.display.set_mode(
+            #     (self.WINDOW_HEIGHT/2, self.WINDOW_HEIGHT/2)
+            # )
+            # self.clock = pygame.time.Clock()
+            # self.WINDOW_WIDTH, self.WINDOW_HEIGHT = self.window.get_size()
             pygame.init()
-            self.clock = pygame.time.Clock
-            self.WINDOW_WIDTH = 1000
-            self.WINDOW_HEIGHT = 1000
-            self.window = pygame.display.set_mode(
-                (self.WINDOW_HEIGHT, self.WINDOW_HEIGHT)
-            )
             self.clock = pygame.time.Clock()
+            # Option 1: Automatically set to current display resolution
+            info = pygame.display.Info()
+            self.WINDOW_WIDTH, self.WINDOW_HEIGHT = info.current_w, info.current_h
+            # Option 2: Alternatively, set your own default resolution
+            # self.WINDOW_WIDTH, self.WINDOW_HEIGHT = 1000, 1000
+            self.window = pygame.display.set_mode(
+                (self.WINDOW_WIDTH, self.WINDOW_HEIGHT), pygame.RESIZABLE
+            )
+            # Update dimensions after window is created
             self.WINDOW_WIDTH, self.WINDOW_HEIGHT = self.window.get_size()
 
 
@@ -483,7 +495,7 @@ class raw_env(AECEnv):
         # Additional heuristics for how well an agent is doing
         self._score = {name: 0 for name in self.agents}
         self._piece_score = {name: 0 for name in self.agents}
-
+        
     def render(self):
         if self.render_mode is None:
             gymnasium.logger.warn(
@@ -492,10 +504,12 @@ class raw_env(AECEnv):
             return
 
         elif self.render_mode == "human":
+            # Update the window dimensions in case of resize
+            self.WINDOW_WIDTH, self.WINDOW_HEIGHT = self.window.get_size()
             self.clock.tick(self.metadata["render_fps"])
 
-            # Only render if there is something to render
-            block_size = int(self.WINDOW_WIDTH / self.board_size)  # Set the size of the grid block
+            # Use the smaller dimension to calculate block_size so the board fits in both directions
+            block_size = min(self.WINDOW_WIDTH // self.board_size, self.WINDOW_HEIGHT // self.board_size)
             border_color = (0, 0, 0)
             self.colors = {
                 0: (211, 211, 211),
@@ -508,51 +522,37 @@ class raw_env(AECEnv):
                 7: (233, 210, 187),
                 8: (208, 189, 189),
                 9: (172, 172, 195),
-            }  # old cathedral preview color (192,221,208)
+            }
 
-            for x, x_screen in enumerate(range(0, self.WINDOW_WIDTH, block_size)):
-                for y, y_screen in enumerate(range(0, self.WINDOW_HEIGHT, block_size)):
-                    # If space is empty and in a player's territory, color it to mark that it is territory
+            board_reshaped = self.board.squares.reshape(self.board_size, self.board_size)
+            territory_reshaped = self.board.territory.reshape(self.board_size, self.board_size)
+
+            # Loop using board indices rather than pixel positions
+            for x in range(self.board_size):
+                for y in range(self.board_size):
+                    x_screen = x * block_size
+                    y_screen = y * block_size
+
                     if (
-                        self.board.territory.reshape(self.board_size, self.board_size)[x, y] > 0
-                        and self.board.squares.reshape(self.board_size, self.board_size)[x, y] == 0
+                        territory_reshaped[x, y] > 0
+                        and board_reshaped[x, y] == 0
                     ):
-                        color = self.colors[
-                            self.board.territory.reshape(self.board_size, self.board_size)[x, y] + 3
-                        ]
+                        # Using territory value + 3 to choose a color
+                        color = self.colors[territory_reshaped[x, y] + 3]
                     else:
-                        color = self.colors[self.board.squares.reshape(self.board_size, self.board_size)[x, y]]
+                        color = self.colors[board_reshaped[x, y]]
 
-                    if color == self.colors[0]:
-                        border = False
+                    border = color != self.colors[0]
+
+                    # Draw the square (cell) for the board
+                    pygame.draw.rect(self.window, color, (x_screen, y_screen, block_size, block_size), 0)
+                    if border:
+                        pygame.draw.rect(self.window, border_color, (x_screen, y_screen, block_size, block_size), 2)
                     else:
-                        border = True
-
-                    def draw_square(
-                        surface, x, y, width, height, color, border_color, border
-                    ):
-                        pygame.draw.rect(surface, color, (x, y, width, height), 0)
-                        if border:
-                            pygame.draw.rect(
-                                surface, border_color, (x, y, width, height), 2
-                            )
-                        else:
-                            pygame.draw.rect(
-                                surface, border_color, (x, y, width, height), 1
-                            )
-
-                    draw_square(
-                        self.window,
-                        x_screen,
-                        y_screen,
-                        block_size,
-                        block_size,
-                        color,
-                        border_color,
-                        border,
-                    )
+                        pygame.draw.rect(self.window, border_color, (x_screen, y_screen, block_size, block_size), 1)
 
             pygame.display.update()
+
         elif self.render_mode == "text":
             print("Board: \n", self.board.squares.reshape(self.board_size, self.board_size))
             print("Territory: \n", self.board.territory.reshape(self.board_size, self.board_size))
