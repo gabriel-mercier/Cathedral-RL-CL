@@ -1,23 +1,13 @@
-from cathedral_rl import cathedral_v0 
-from cathedral_rl.game.board import Board 
- 
-import numpy as np
-import matplotlib.pyplot as plt
-
 import torch
-
-from evaluate import evaluate_dqn
-
 from train import train_dqn
-from utils import select_action_dqn
-from model import DQN
 
 board_size = 8
 
-num_episodes = 12
-buffer_capacity = 1000
+num_episodes = 4000
+buffer_capacity = 10000
 
-treshold_penalize_illegal = 0
+treshold_penalize_illegal = 1500
+treshold_play_vs_random = 0
 
 batch_size = 64
 gamma = 0.95
@@ -50,7 +40,8 @@ train_dqn(name=name,
         board_size=board_size, 
         num_episodes=num_episodes, 
         buffer_capacity=buffer_capacity, 
-        treshold_penalize_illegal=treshold_penalize_illegal, 
+        treshold_penalize_illegal=treshold_penalize_illegal,  
+        treshold_play_vs_random= treshold_play_vs_random,
         batch_size=batch_size,
         gamma=gamma, 
         learning_rate=learning_rate, 

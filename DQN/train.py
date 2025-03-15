@@ -1,13 +1,16 @@
 
 from ReplayBuffer import ReplayBuffer, PrioritizedReplayBuffer
 from utils import epsilon_by_episode, temperature_by_episode, create_networks, select_action_dqn, compute_q_values
+import sys
+sys.path.append('..')
 from cathedral_rl import cathedral_v0 
 import torch.optim as optim
 import torch
 import numpy as np
 import torch.nn as nn
+import random
 
-def train_dqn(name, board_size, num_episodes, buffer_capacity, treshold_penalize_illegal, batch_size, gamma, learning_rate, prioritized_replay_buffer, parameters_updates, target_update_freq, epsilon_start, epsilon_final, epsilon_decay, temperature_start, temperature_final, temperature_decay, method, model, per_move_rewards, final_reward_score_difference, device):
+def train_dqn(name, board_size, num_episodes, buffer_capacity, treshold_penalize_illegal, treshold_play_vs_random, batch_size, gamma, learning_rate, prioritized_replay_buffer, parameters_updates, target_update_freq, epsilon_start, epsilon_final, epsilon_decay, temperature_start, temperature_final, temperature_decay, method, model, per_move_rewards, final_reward_score_difference, device):
     print(f'Model name : {name}')
 
     env = cathedral_v0.env(board_size=board_size, render_mode="text", per_move_rewards=per_move_rewards, final_reward_score_difference=final_reward_score_difference)
@@ -28,6 +31,7 @@ def train_dqn(name, board_size, num_episodes, buffer_capacity, treshold_penalize
     else:
        replay_buffer = ReplayBuffer(buffer_capacity) 
     
+    agent_played = 'player_0'
     enter_train = False
     list_reward = []
     list_epsilon = []
@@ -49,8 +53,14 @@ def train_dqn(name, board_size, num_episodes, buffer_capacity, treshold_penalize
         losses = []
         episode_ended = True
         steps = 0
-        epsilon = epsilon_by_episode(episode, epsilon_start, epsilon_final, epsilon_decay)
-        temperature = temperature_by_episode(episode, temperature_start, temperature_final, temperature_decay)
+        if treshold_play_vs_random > 0 and episode > treshold_play_vs_random:
+            new_episode = episode - treshold_play_vs_random
+        elif treshold_penalize_illegal > 0 and episode > treshold_penalize_illegal:
+            new_episode = episode - treshold_penalize_illegal
+        else:
+            new_episode = episode
+        epsilon = epsilon_by_episode(new_episode, epsilon_start, epsilon_final, epsilon_decay)
+        temperature = temperature_by_episode(new_episode, temperature_start, temperature_final, temperature_decay)
 
         while env.agents:
             steps += 1
@@ -63,11 +73,21 @@ def train_dqn(name, board_size, num_episodes, buffer_capacity, treshold_penalize
             state = observation["observation"]
             action_mask = observation["action_mask"]
             
-            first_action, action = select_action_dqn(policy_net, state, action_mask, legal_moves, device, method, epsilon, temperature)
-                                 
+            if episode > treshold_play_vs_random:
+                first_action, action = select_action_dqn(policy_net, state, action_mask, legal_moves, device, method, epsilon, temperature)
+            else:
+                if current_agent == agent_played:
+                    first_action, action = select_action_dqn(policy_net, state, action_mask, legal_moves, device, method, epsilon, temperature)
+                else:
+                    action = random.choice(legal_moves)
+                    first_action = action
+
+            
             legal_action = first_action == action
+
             env.step(action)
             reward = env.rewards[current_agent]
+
             if episode > treshold_penalize_illegal:
                 legal_action = True
             
@@ -129,8 +149,8 @@ def train_dqn(name, board_size, num_episodes, buffer_capacity, treshold_penalize
         list_legal_actions.append(legal_actions)
         list_reward.append(total_reward)
         list_steps.append(steps)
-        list_epsilon.append(epsilon_by_episode(episode, epsilon_start, epsilon_final, epsilon_decay))
-        list_temperature.append(temperature_by_episode(episode, temperature_start, temperature_final, temperature_decay))
+        list_epsilon.append(epsilon)
+        list_temperature.append(temperature)
         if losses:
             avg_loss = sum(losses) / len(losses)
         else:
@@ -161,7 +181,7 @@ def train_dqn(name, board_size, num_episodes, buffer_capacity, treshold_penalize
            print(
     f"Episode {episode+1}/{num_episodes} - Reward total: {total_reward:.2f} - Loss: {sum(losses)/(len(losses)+1e-8):.4f} - Winner: {wins}"
     + (f"- Legal Actions : {legal_actions} - Ep Ended: {episode_ended}" if treshold_penalize_illegal > 0 else "")
-    + (f"- Epsilon: {epsilon_by_episode(episode, epsilon_start, epsilon_final, epsilon_decay):.2f}" if method=='eps_greedy' else f"- Temperature: {temperature_by_episode(episode, temperature_start, temperature_final, temperature_decay):.2f}")
+    + (f"- Epsilon: {epsilon:.2f}" if method=='eps_greedy' else f"- Temperature: {temperature:.2f}")
 )
 
         if (episode+1) % target_update_freq == 0:
