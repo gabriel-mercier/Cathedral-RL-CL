@@ -263,54 +263,50 @@ class raw_env(AECEnv):
     # Score will be positive if agent has placed more large pieces, or claimed more territory
     def _calculate_score(self):
         _, score = self.board.get_score()
-
-        # Difference between average size of pieces placed per turn: agent avg size per turn - opponent avg size per turn
-        # Positive if agent has placed larger pieces per turn on average
-        if self.turns[self.agents[0]] != 0:
-            avg_agent_0 = (
-                self.board.total_piece_squares - score[self.agents[0]]
-            ) / self.turns[self.agents[0]]
-            avg_agent_1 = (
-                self.board.total_piece_squares - score[self.agents[1]]
-            ) / self.turns[self.agents[1]]
-            # self.score[self.agents[0]]["squares_per_turn"] = avg_agent_0 - avg_agent_1
-            # self.score[self.agents[1]]["squares_per_turn"] = avg_agent_1 - avg_agent_0
-            self.score[self.agents[0]]["squares_per_turn"] = avg_agent_0
-            self.score[self.agents[1]]["squares_per_turn"] = avg_agent_1
-
-        # Difference between number of total squares remaining (opponent squares remaining - agent squares remaining)
-        # Positive if the opponent has more total squares remaining (penalizes pieces being captured)
-        self.score[self.agents[0]]["remaining_pieces"] = (
-            score[self.agents[1]] - score[self.agents[0]]
-        )
-        self.score[self.agents[1]]["remaining_pieces"] = (
-            score[self.agents[0]] - score[self.agents[1]]
-        )
-
-        # Difference in territory (agent's total territory - opponent's total territory)
-        # Positive if the opponent has less total territory claimed
         territory = self.board.territory
-        self.score[self.agents[0]]["territory"] = len(territory[territory == 1]) - len(
-            territory[territory == 2]
-        )
-        self.score[self.agents[1]]["territory"] = len(territory[territory == 2]) - len(
-            territory[territory == 1]
-        )
-
+        
+        # Calculate components
         for i in range(2):
+            # Squares per turn (efficiency metric)
+            if self.turns[self.agents[i]] > 0:
+                avg_squares = (self.board.total_piece_squares - score[self.agents[i]]) / self.turns[self.agents[i]]
+                # Normalize to typical range
+                self.score[self.agents[i]]["squares_per_turn"] = avg_squares / 5.0  # Assuming avg piece size ~5
+            else:
+                self.score[self.agents[i]]["squares_per_turn"] = 0
+            
+            # Remaining pieces (placement advantage)
+            opponent_idx = 1 - i
+            self.score[self.agents[i]]["remaining_pieces"] = (
+                score[self.agents[opponent_idx]] - score[self.agents[i]]
+            ) / 20.0  # Normalize by approximate total remaining piece value
+            
+            # Territory control
+            agent_territory = len(territory[territory == i+1])
+            opponent_territory = len(territory[territory == opponent_idx+1])
+            self.score[self.agents[i]]["territory"] = (agent_territory - opponent_territory) / (self.board_size * self.board_size / 2)
+            
+            # Calculate weighted total
             self.score[self.agents[i]]["total"] = (
-                self.score[self.agents[i]]["squares_per_turn"]
-                + self.score[self.agents[i]]["remaining_pieces"]
-                + self.score[self.agents[i]]["territory"]
+                0.5 * self.score[self.agents[i]]["squares_per_turn"] +  # Efficiency matters but less
+                1.0 * self.score[self.agents[i]]["remaining_pieces"] +  # Piece advantage is important
+                2.0 * self.score[self.agents[i]]["territory"]           # Territory is most important
             )
+        
+        # Add win bonus - ensure winning is always better than losing
+        winner = self.board.check_for_winner()[0]
+        if winner >= 0:  # Not a draw
+            win_bonus = 5.0  # Significant bonus that dominates other components
+            self.score[self.agents[winner]]["total"] += win_bonus
+            self.score[self.agents[1-winner]]["total"] -= win_bonus
 
     # Calculate winner at the end of game
     def _calculate_winner(self):
         winner, pieces_remaining, piece_score = self.board.check_for_winner()
         if self.final_reward_score_difference:
             self._calculate_score()
-            # self.rewards[self.agents[0]] =
-            # self.score["remaining_pieces"]
+            self.rewards[self.agents[0]] = self.score[self.agents[0]]['total']
+            self.rewards[self.agents[1]] = self.score[self.agents[1]]['total']
         else:
             if winner == 0:
                 self.rewards[self.agents[0]] = 10
@@ -415,7 +411,7 @@ class raw_env(AECEnv):
                 piece_size, territory_claimed, piece_removed_size
             )  # Heuristic reward for current move
         self._accumulate_rewards()
-
+        
         # Calculate score heuristics every other turn (when both agents have placed the same number of pieces)
         if self.turns[self.agents[0]] == self.turns[self.agents[1]]:
             self._calculate_score()
