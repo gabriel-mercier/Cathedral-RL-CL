@@ -73,15 +73,18 @@ def train_dqn(name, board_size, num_episodes, buffer_capacity, treshold_penalize
             state = observation["observation"]
             action_mask = observation["action_mask"]
             
-            if episode > treshold_play_vs_random:
-                first_action, action = select_action_dqn(policy_net, state, action_mask, legal_moves, device, method, epsilon, temperature)
-            else:
-                if current_agent == agent_played:
+            if treshold_play_vs_random > 0:
+                if episode > treshold_play_vs_random:
                     first_action, action = select_action_dqn(policy_net, state, action_mask, legal_moves, device, method, epsilon, temperature)
                 else:
-                    action = random.choice(legal_moves)
-                    first_action = action
+                    if current_agent == agent_played:
+                        first_action, action = select_action_dqn(policy_net, state, action_mask, legal_moves, device, method, epsilon, temperature)
+                    else:
+                        action = random.choice(legal_moves)
+                        first_action = action
 
+            first_action, action = select_action_dqn(policy_net, state, action_mask, legal_moves, device, method, epsilon, temperature)
+            
             
             legal_action = first_action == action
 
