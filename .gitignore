@@ -150,3 +150,5 @@ dmypy.json
 /PPO/model_weights_random_PPO
 
 results_DQN/models
+
+*.pth

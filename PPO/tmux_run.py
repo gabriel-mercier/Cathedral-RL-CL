@@ -6,14 +6,16 @@ import matplotlib.pyplot as plt
 import sys
 sys.path.append('..')
 from cathedral_rl import cathedral_v0  
-from models.ppo_cnn import PPOCNN
+from models.ppo_vae import PPOVAE
 import numpy as np
 import pygame
 from ppo_utils import create_game_gif, print_buffer_sequence, RolloutBuffer, evaluate_ppo_against_random
 
-def train_ppo_self_play(name, K_epochs, eps_clip, gamma, lr_actor, lr_critic, board_size, num_episodes, save_freq):
+def train_ppo_self_play(name, K_epochs, eps_clip, gamma, lr_actor, lr_critic, board_size, num_episodes, save_freq, latent_dim):
     env = cathedral_v0.env(board_size=board_size, render_mode="text", per_move_rewards=True, final_reward_score_difference=False)
     env.reset()
+    
+    vae_path = "board_game_vae_v2_ppo.pt"
     
     gif_dir = os.path.join("game_recordings", name)
     os.makedirs(gif_dir, exist_ok=True)
@@ -32,25 +34,29 @@ def train_ppo_self_play(name, K_epochs, eps_clip, gamma, lr_actor, lr_critic, bo
     print(f'observation shape: {obs_shape}')
     
     # Initialize primary PPO agent (the one that will be learning)
-    primary_agent = PPOCNN(
+    primary_agent = PPOVAE(
         obs_shape=obs_shape,
         action_dim=n_actions,
         lr_actor=lr_actor,
         lr_critic=lr_critic,
         gamma=gamma,
         K_epochs=K_epochs,
-        eps_clip=eps_clip
+        eps_clip=eps_clip,
+        vae_path=vae_path,
+        latent_dim=latent_dim
     )
     
     # Initialize target PPO agent (the opponent that will be periodically updated)
-    target_agent = PPOCNN(
+    target_agent = PPOVAE(
         obs_shape=obs_shape,
         action_dim=n_actions,
         lr_actor=lr_actor,
         lr_critic=lr_critic,
         gamma=gamma,
         K_epochs=K_epochs,
-        eps_clip=eps_clip
+        eps_clip=eps_clip,
+        vae_path=vae_path,
+        latent_dim=latent_dim
     )
     
     # Clone the primary agent weights to target agent initially
@@ -177,6 +183,7 @@ def train_ppo_self_play(name, K_epochs, eps_clip, gamma, lr_actor, lr_critic, bo
         # Update target network with soft updates more frequently
         if (episode + 1) % 10 == 0:
             # Soft update (interpolate between models)
+            """
             for target_param, param in zip(target_agent.policy.parameters(), 
                                           primary_agent.policy.parameters()):
                 target_param.data.copy_(
@@ -184,6 +191,10 @@ def train_ppo_self_play(name, K_epochs, eps_clip, gamma, lr_actor, lr_critic, bo
                 )
                 
             target_agent.policy_old.load_state_dict(target_agent.policy.state_dict())
+            """
+            target_agent.policy.load_state_dict(primary_agent.policy.state_dict())
+            target_agent.policy_old.load_state_dict(target_agent.policy.state_dict())
+            
         if (episode + 1) % 5 == 0:
             win_rate_p0 = list_win_count_p0[-1] / (episode + 1)
             win_rate_p1 = list_win_count_p1[-1] / (episode + 1)
@@ -193,13 +204,13 @@ def train_ppo_self_play(name, K_epochs, eps_clip, gamma, lr_actor, lr_critic, bo
             print(f"  Primary Agent (P0) - Avg Reward: {sum(list_reward_p0[-100:]) / min(100, len(list_reward_p0)):.2f} - Win Rate: {win_rate_p0:.2f}")
             print(f"  Target Agent (P1) - Avg Reward: {sum(list_reward_p1[-100:]) / min(100, len(list_reward_p1)):.2f} - Win Rate: {win_rate_p1:.2f}")
             print(f"  Draw Rate: {draw_rate:.2f}")
-
+        """
         if (episode + 1) % 100 == 0:
             # Complete copy of primary agent
             target_agent.policy.load_state_dict(primary_agent.policy.state_dict())
             target_agent.policy_old.load_state_dict(target_agent.policy.state_dict())
             print("Target agent fully synchronized with primary agent")
- 
+        """
         if(episode + 1) % 300 == 0:
             buffer_states = primary_agent.buffer.states.copy() if hasattr(primary_agent.buffer.states, 'copy') else primary_agent.buffer.states[:]
             buffer_actions = primary_agent.buffer.actions.copy() if hasattr(primary_agent.buffer.actions, 'copy') else primary_agent.buffer.actions[:]
@@ -239,11 +250,11 @@ def train_ppo_self_play(name, K_epochs, eps_clip, gamma, lr_actor, lr_critic, bo
             print("Checkpoint saved")
             
             # Save model
-            os.makedirs("model_weights_adversarial_PPO", exist_ok=True)
-            primary_agent.save(f"model_weights_adversarial_PPO/{name}_{episode+1}.pth")
+            os.makedirs("model_weights_vae_PPO_2", exist_ok=True)
+            primary_agent.save(f"model_weights_vae_PPO_2/{name}_{episode+1}.pth")
     
     # Save final model and training statistics
-    os.makedirs("model_weights_adversarial_PPO", exist_ok=True)
+    os.makedirs("model_weights_vae_PPO_2", exist_ok=True)
     print(f'Saving final model')
     torch.save({
         'model_state_dict': primary_agent.policy.state_dict(),
@@ -254,7 +265,7 @@ def train_ppo_self_play(name, K_epochs, eps_clip, gamma, lr_actor, lr_critic, bo
         'list_draw_count': list_draw_count,
         'policy_checkpoints': policy_checkpoints,
         'num_checkpoints': len(policy_checkpoints)
-    }, f"model_weights_adversarial_PPO/{name}_final.pth")
+    }, f"model_weights_vae_PPO_2/{name}_final.pth")
     
     env.close()
     
@@ -290,8 +301,10 @@ if __name__ == "__main__" :
     board_size = 8
     num_episodes = 10000
     save_freq = 1000
+    
+    latent_dim = 32
 
-    rewards_p0, rewards_p1, win_counts_p0, win_counts_p1, draw_counts,  surr1_array, surr2_array, values_array, mse_loss_array, total_loss_array,ratio_array, ratio_std_array, ppo_win_rates, random_win_rates, eval_draw_rates, eval_episodes = train_ppo_self_play("cathedral_ppo_self_play_adversarial", K_epochs, eps_clip, gamma, lr_actor, lr_critic, board_size, num_episodes, save_freq)
+    rewards_p0, rewards_p1, win_counts_p0, win_counts_p1, draw_counts,  surr1_array, surr2_array, values_array, mse_loss_array, total_loss_array,ratio_array, ratio_std_array, ppo_win_rates, random_win_rates, eval_draw_rates, eval_episodes = train_ppo_self_play("cathedral_ppo_self_play_vae", K_epochs, eps_clip, gamma, lr_actor, lr_critic, board_size, num_episodes, save_freq, latent_dim)
     
     import numpy as np
     import matplotlib.pyplot as plt
@@ -372,6 +385,7 @@ if __name__ == "__main__" :
     plt.title("Ratio and Standard Deviation")
     plt.xlabel("Training Step")
     plt.ylabel("Ratio")
+    plt.ylim(-3,3)
     plt.legend()
     
     plt.subplot(4, 2, 8)
@@ -386,5 +400,5 @@ if __name__ == "__main__" :
     plt.legend()
 
     plt.tight_layout()
-    plt.savefig("ppo_self_play_training_results_extended.png")
+    plt.savefig("ppo_self_play_vae_training_results_all_updates.png")
     plt.show()

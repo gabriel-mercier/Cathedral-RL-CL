@@ -118,7 +118,6 @@ class ActorCriticCNN(nn.Module):
         return action_logprobs, state_values, dist_entropy
 
 
-# Modified PPO class to use the CNN model
 class PPOCNN:
     def __init__(self, obs_shape, action_dim, lr_actor, lr_critic, gamma, K_epochs, eps_clip):
         self.gamma = gamma
