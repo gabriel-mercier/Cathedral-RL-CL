@@ -1,5 +1,5 @@
 import numpy as np
-from model import DQN, ResNet, DCNNet
+from .model import DQN, ResNet, DCNNet
 import torch
 import random
 import torch.nn.functional as F

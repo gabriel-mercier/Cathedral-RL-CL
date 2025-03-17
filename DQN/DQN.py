@@ -6,14 +6,15 @@ board_size = 8
 num_episodes = 4000
 buffer_capacity = 10000
 
-treshold_penalize_illegal = 1500
+treshold_penalize_illegal = 0
 treshold_play_vs_random = 0
+evaluate_freq = 500
 
 batch_size = 64
 gamma = 0.95
 learning_rate = 1e-3
 
-prioritized_replay_buffer = True
+prioritized_replay_buffer = False
 
 parameters_updates = 10   
 target_update_freq = 30  
@@ -48,6 +49,7 @@ train_dqn(name=name,
         prioritized_replay_buffer=prioritized_replay_buffer, 
         parameters_updates=parameters_updates, 
         target_update_freq=target_update_freq, 
+        evaluate_freq=evaluate_freq,
         epsilon_start=epsilon_start, 
         epsilon_final=epsilon_final, 
         epsilon_decay=epsilon_decay, 

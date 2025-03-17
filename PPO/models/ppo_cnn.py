@@ -3,7 +3,7 @@ import torch.nn as nn
 from torch.distributions import Categorical
 import sys
 sys.path.append('..')
-from ppo_utils import RolloutBuffer
+from ..ppo_utils import RolloutBuffer
 import numpy as np
 
 device = torch.device('cpu')

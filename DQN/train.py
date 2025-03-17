@@ -1,6 +1,7 @@
 
 from ReplayBuffer import ReplayBuffer, PrioritizedReplayBuffer
 from utils import epsilon_by_episode, temperature_by_episode, create_networks, select_action_dqn, compute_q_values
+from evaluate import evaluate_dqn
 import sys
 sys.path.append('..')
 from cathedral_rl import cathedral_v0 
@@ -10,7 +11,7 @@ import numpy as np
 import torch.nn as nn
 import random
 
-def train_dqn(name, board_size, num_episodes, buffer_capacity, treshold_penalize_illegal, treshold_play_vs_random, batch_size, gamma, learning_rate, prioritized_replay_buffer, parameters_updates, target_update_freq, epsilon_start, epsilon_final, epsilon_decay, temperature_start, temperature_final, temperature_decay, method, model, per_move_rewards, final_reward_score_difference, device):
+def train_dqn(name, board_size, num_episodes, buffer_capacity, treshold_penalize_illegal, treshold_play_vs_random, batch_size, gamma, learning_rate, prioritized_replay_buffer, parameters_updates, target_update_freq, evaluate_freq, epsilon_start, epsilon_final, epsilon_decay, temperature_start, temperature_final, temperature_decay, method, model, per_move_rewards, final_reward_score_difference, device):
     print(f'Model name : {name}')
 
     env = cathedral_v0.env(board_size=board_size, render_mode="text", per_move_rewards=per_move_rewards, final_reward_score_difference=final_reward_score_difference)
@@ -41,6 +42,7 @@ def train_dqn(name, board_size, num_episodes, buffer_capacity, treshold_penalize
     list_winner = []    
     list_legal_actions = []
     list_episode_ended = []
+    list_evaluate = []
     win_count = 0
 
     for episode in range(num_episodes):
@@ -148,7 +150,12 @@ def train_dqn(name, board_size, num_episodes, buffer_capacity, treshold_penalize
             if not legal_action:
                 episode_ended = False
                 break
-                    
+
+        if episode % evaluate_freq == 0 or episode == num_episodes-1:
+            avg_reward, winrate = evaluate_dqn(opponents=[-1], board_size=board_size, device=device, state_dict=policy_net.state_dict())
+            print(f'Avg Reward total: {avg_reward:.2f} - Winrate: {winrate:.2f}')
+            list_evaluate.append((avg_reward, winrate))
+
         list_legal_actions.append(legal_actions)
         list_reward.append(total_reward)
         list_steps.append(steps)
@@ -203,6 +210,7 @@ def train_dqn(name, board_size, num_episodes, buffer_capacity, treshold_penalize
         'list_winner': list_winner,
         'list_legal_actions': list_legal_actions,
         'list_episode_ended': list_episode_ended,
+        'list_evaluate': list_evaluate,
         'win_rate': win_count/num_episodes
     }, f"model_weights_DQN/{name}.pth")
 
