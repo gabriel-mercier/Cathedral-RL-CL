@@ -265,4 +265,9 @@ if __name__ == "__main__":
     print("Jeu terminé.")
     print("État final du plateau :")
     print(state["board"].squares.reshape(board_size, board_size))
-    print(f"Résultat : {evaluate_terminal(state)}")
+    if evaluate_terminal(state) > 0:
+        print(f"Résultat : Alpha-beta Minimax wins")
+    elif evaluate_terminal(state) == 0:
+        print("Draw !")
+    else:
+        print(f"Résultat : Random wins")
