@@ -180,20 +180,9 @@ def train_ppo_self_play(name, K_epochs, eps_clip, gamma, lr_actor, lr_critic, bo
             ratio_array.append(ratio)
             ratio_std_array.append(ratio_std)
         
-        # Update target network with soft updates more frequently
-        if (episode + 1) % 10 == 0:
-            # Soft update (interpolate between models)
-            """
-            for target_param, param in zip(target_agent.policy.parameters(), 
-                                          primary_agent.policy.parameters()):
-                target_param.data.copy_(
-                    0.7 * target_param.data + 0.3 * param.data
-                )
-                
-            target_agent.policy_old.load_state_dict(target_agent.policy.state_dict())
-            """
-            target_agent.policy.load_state_dict(primary_agent.policy.state_dict())
-            target_agent.policy_old.load_state_dict(target_agent.policy.state_dict())
+
+        target_agent.policy.load_state_dict(primary_agent.policy.state_dict())
+        target_agent.policy_old.load_state_dict(target_agent.policy.state_dict())
             
         if (episode + 1) % 5 == 0:
             win_rate_p0 = list_win_count_p0[-1] / (episode + 1)
@@ -250,11 +239,11 @@ def train_ppo_self_play(name, K_epochs, eps_clip, gamma, lr_actor, lr_critic, bo
             print("Checkpoint saved")
             
             # Save model
-            os.makedirs("model_weights_vae_PPO_2", exist_ok=True)
-            primary_agent.save(f"model_weights_vae_PPO_2/{name}_{episode+1}.pth")
+            os.makedirs("model_weights_vae_every_step", exist_ok=True)
+            primary_agent.save(f"model_weights_vae_every_step/{name}_{episode+1}.pth")
     
     # Save final model and training statistics
-    os.makedirs("model_weights_vae_PPO_2", exist_ok=True)
+    os.makedirs("model_weights_vae_every_step", exist_ok=True)
     print(f'Saving final model')
     torch.save({
         'model_state_dict': primary_agent.policy.state_dict(),
@@ -265,7 +254,7 @@ def train_ppo_self_play(name, K_epochs, eps_clip, gamma, lr_actor, lr_critic, bo
         'list_draw_count': list_draw_count,
         'policy_checkpoints': policy_checkpoints,
         'num_checkpoints': len(policy_checkpoints)
-    }, f"model_weights_vae_PPO_2/{name}_final.pth")
+    }, f"model_weights_vae_every_step/{name}_final.pth")
     
     env.close()
     
@@ -304,7 +293,7 @@ if __name__ == "__main__" :
     
     latent_dim = 32
 
-    rewards_p0, rewards_p1, win_counts_p0, win_counts_p1, draw_counts,  surr1_array, surr2_array, values_array, mse_loss_array, total_loss_array,ratio_array, ratio_std_array, ppo_win_rates, random_win_rates, eval_draw_rates, eval_episodes = train_ppo_self_play("cathedral_ppo_self_play_vae", K_epochs, eps_clip, gamma, lr_actor, lr_critic, board_size, num_episodes, save_freq, latent_dim)
+    rewards_p0, rewards_p1, win_counts_p0, win_counts_p1, draw_counts,  surr1_array, surr2_array, values_array, mse_loss_array, total_loss_array,ratio_array, ratio_std_array, ppo_win_rates, random_win_rates, eval_draw_rates, eval_episodes = train_ppo_self_play("cathedral_ppo_self_play_vae_every_step", K_epochs, eps_clip, gamma, lr_actor, lr_critic, board_size, num_episodes, save_freq, latent_dim)
     
     import numpy as np
     import matplotlib.pyplot as plt
@@ -400,5 +389,5 @@ if __name__ == "__main__" :
     plt.legend()
 
     plt.tight_layout()
-    plt.savefig("ppo_self_play_vae_training_results_all_updates.png")
+    plt.savefig("ppo_self_play_vae_training_results_every_step.png")
     plt.show()

@@ -1,5 +1,0 @@
-This oscillation pattern is actually quite common in adversarial self-play setups and indicates a few potential issues:
-
-Policy Cycling: The agents appear to be learning strategies that counter each other, then adapting, then getting countered again. This creates a rock-paper-scissors dynamic where neither agent truly converges.
-Negative Sum Game: The rewards are predominantly negative, suggesting both agents are being penalized more than rewarded. This can lead to risk-averse behavior rather than optimal play.
-Update Frequency Mismatch: The target agent getting updated every episode might be causing the primary agent to chase a moving target too frequently.
