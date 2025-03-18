@@ -51,7 +51,7 @@ mkdir model_weights_DQN
 ```
 
 #### Execution
-Open the associated Jupyter Notebook, adjust the hyperparameters in the designated cell, and then start the training.
+Open the **DQN.ipynb** Jupyter Notebook, adjust the hyperparameters in the designated cell, and then start the training. We can also compute plots and metrics in the notebook.
 
 ### PPO
 

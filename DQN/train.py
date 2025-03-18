@@ -11,6 +11,7 @@ import numpy as np
 import torch.nn as nn
 import random
 
+# Train DQN
 def train_dqn(name, board_size, num_episodes, buffer_capacity, treshold_penalize_illegal, treshold_play_vs_random, batch_size, gamma, learning_rate, prioritized_replay_buffer, parameters_updates, target_update_freq, evaluate_freq, epsilon_start, epsilon_final, epsilon_decay, temperature_start, temperature_final, temperature_decay, method, model, per_move_rewards, final_reward_score_difference, device):
     print(f'Model name : {name}')
 
@@ -20,18 +21,20 @@ def train_dqn(name, board_size, num_episodes, buffer_capacity, treshold_penalize
     n_actions = env.action_space('player_0').n
     print(f'n_actions : {n_actions}')
     obs_shape = env.observe('player_0')["observation"].shape
-
-    policy_net, target_net = create_networks(obs_shape, n_actions, model, board_size, device)
     
+    # Initialize networks
+    policy_net, target_net = create_networks(obs_shape, n_actions, model, board_size, device)
     target_net.eval()
 
     optimizer = optim.Adam(policy_net.parameters(), lr=learning_rate)
     
+    # Initialize replay buffer
     if prioritized_replay_buffer:
         replay_buffer = PrioritizedReplayBuffer(buffer_capacity, alpha=0.6)
     else:
        replay_buffer = ReplayBuffer(buffer_capacity) 
     
+    # Initialize variables
     agent_played = 'player_0'
     enter_train = False
     list_reward = []
@@ -45,6 +48,7 @@ def train_dqn(name, board_size, num_episodes, buffer_capacity, treshold_penalize
     list_evaluate = []
     win_count = 0
 
+    # Iterate over episodes
     for episode in range(num_episodes):
         if episode == treshold_penalize_illegal:
             print("STOP penalizing illegal actions")
@@ -55,12 +59,16 @@ def train_dqn(name, board_size, num_episodes, buffer_capacity, treshold_penalize
         losses = []
         episode_ended = True
         steps = 0
+
+        # Update relative episode for illegal and random setups
         if treshold_play_vs_random > 0 and episode > treshold_play_vs_random:
             new_episode = episode - treshold_play_vs_random
         elif treshold_penalize_illegal > 0 and episode > treshold_penalize_illegal:
             new_episode = episode - treshold_penalize_illegal
         else:
             new_episode = episode
+        
+        # Compute epsilon and temperature
         epsilon = epsilon_by_episode(new_episode, epsilon_start, epsilon_final, epsilon_decay)
         temperature = temperature_by_episode(new_episode, temperature_start, temperature_final, temperature_decay)
 
@@ -72,23 +80,26 @@ def train_dqn(name, board_size, num_episodes, buffer_capacity, treshold_penalize
             observation = env.observe(current_agent)
             legal_moves = [i for i, valid in enumerate(observation["action_mask"]) if valid]
             
+            # Observe state and action mask
             state = observation["observation"]
             action_mask = observation["action_mask"]
             
+            # Select action for training vs random
             if treshold_play_vs_random > 0:
-                if episode > treshold_play_vs_random:
+                if episode > treshold_play_vs_random: # Not active anymore
                     first_action, action = select_action_dqn(policy_net, state, action_mask, legal_moves, device, method, epsilon, temperature)
                 else:
                     if current_agent == agent_played:
                         first_action, action = select_action_dqn(policy_net, state, action_mask, legal_moves, device, method, epsilon, temperature)
-                    else:
+                    else: # Random agent
                         action = random.choice(legal_moves)
                         first_action = action
 
             first_action, action = select_action_dqn(policy_net, state, action_mask, legal_moves, device, method, epsilon, temperature)
             
             
-            legal_action = first_action == action
+            # Check if the supposely first chosen action is legal
+            legal_action = first_action == action 
 
             env.step(action)
             reward = env.rewards[current_agent]
@@ -107,7 +118,7 @@ def train_dqn(name, board_size, num_episodes, buffer_capacity, treshold_penalize
                 next_state = next_obs["observation"]
                 next_action_mask = next_obs["action_mask"]
                 done_flag = 0
-            else:
+            else: # Dummy state
                 next_state = np.zeros_like(state)
                 next_action_mask = np.zeros_like(action_mask)
                 done_flag = 1
@@ -122,11 +133,15 @@ def train_dqn(name, board_size, num_episodes, buffer_capacity, treshold_penalize
             if len(replay_buffer) >= batch_size:
                 enter_train = True
                 
-                for _ in range(parameters_updates):  
+                # Update networks parameters
+                for _ in range(parameters_updates):
+                    # Sample batch  
                     if prioritized_replay_buffer:
                         states, actions, rewards, next_states, dones, action_masks, next_action_masks, _, _ = replay_buffer.sample(batch_size)
                     else:
                         states, actions, rewards, next_states, dones, action_masks, next_action_masks = replay_buffer.sample(batch_size)
+                    
+                    # Convert to tensors
                     states_tensor = torch.tensor(states, dtype=torch.float32).to(device)
                     actions_tensor = torch.tensor(actions, dtype=torch.long).to(device)
                     rewards_tensor = torch.tensor(rewards, dtype=torch.float32).to(device)
@@ -137,20 +152,20 @@ def train_dqn(name, board_size, num_episodes, buffer_capacity, treshold_penalize
                     q_values = policy_net(states_tensor)
                     q_values = q_values.gather(1, actions_tensor.unsqueeze(1)).squeeze(1)
                     
+                    # DDQN
                     target_q_values = compute_q_values(policy_net, target_net, next_states_tensor, next_action_masks_tensor, rewards_tensor, dones_tensor, gamma)
                 
                     loss = nn.MSELoss()(q_values, target_q_values)
-                    
                     optimizer.zero_grad()
                     loss.backward()
                     optimizer.step()
-                    
                     losses.append(loss.item())
                     
-            if not legal_action:
+            if not legal_action: # End episode
                 episode_ended = False
                 break
-
+        
+        # Evaluate model against random agent every evaluate_freq episodes
         if episode % evaluate_freq == 0 or episode == num_episodes-1:
             avg_reward, winrate = evaluate_dqn(opponents=[-1], board_size=board_size, device=device, state_dict=policy_net.state_dict())
             print(f'Avg Reward total: {avg_reward:.2f} - Winrate: {winrate:.2f}')
