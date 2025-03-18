@@ -44,7 +44,7 @@ To train your model using DQN:
 
 #### Preparation
 
-Create an empty folder named `model_weights_DQN` in the DQN folder to store metrics during training
+Create an empty folder named `model_weights_DQN` in the `DQN` folder to store metrics during training
 
 #### Execution
 Open the **DQN.ipynb** Jupyter Notebook, adjust the hyperparameters in the designated cell, and then start the training. We can also compute plots and metrics in the notebook.
