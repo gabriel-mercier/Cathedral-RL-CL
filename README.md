@@ -38,24 +38,6 @@ To set up the project, follow these steps:
 
 ## Methods
 
-### I - Tree Based
-
-#### I - 1 MCTS (Monte Carlo Tree Search)
-
-Currently, MCTS is not functional (still in debugging phase).
-You can explore the architecture we aim to implement, but running it at this stage is not recommended as it will not produce meaningful results.
-
-#### I - 2 Minimax
-
-### II - Deep Reinforcement Learning
-
-### II - 1 DQN (Deep Q-Network)
-
-Before training, create an empty folder named `model_weights_DQN` to store metrics during training:
-    ```bash
-    mkdir model_weights_DQN
-Then, run the associated Jupyter Notebook.
-You can adjust the hyperparameters in the designated cell before starting the training.
 ### DQN (Deep Q-Network)
 
 To train your model using DQN:
@@ -71,11 +53,11 @@ mkdir model_weights_DQN
 #### Execution
 Open the associated Jupyter Notebook, adjust the hyperparameters in the designated cell, and then start the training.
 
-### II - 2 PPO
+### PPO
 
   Running the PPO is possible in the associated `PPO_adversarial.ipynb` notebook in the `PPO` folder. Training is done in self play with the `PPOCNN` class detailed in the `PPO/models` folder. 
 
-### III - Representation Learning with a VAE
+### Representation Learning with a VAE
 
  **Training a VAE** can be done with `train_vae.py` in the VAE folder. A trained RL model needs to be loaded for it to work, such as the onces in the `model` folder.
 
@@ -85,20 +67,7 @@ Open the associated Jupyter Notebook, adjust the hyperparameters in the designat
 The MCTS feature is currently in a debugging phase and is not operational. You can review the implemented architecture, but it is not recommended to run it as the results will not be meaningful.
 
 ### Minimax
-An alpha-beta pruning minimax algorithm is available to play against a random opponent. Note that a full execution may take approximately 5 minutes. To test this approach, run the dedicated Python script.
-
-### PPO (Proximal Policy Optimization)
-The PPO module is accessible via a Jupyter Notebook. You can choose to train against a random opponent or via self-play. Adjust the parameters directly in the Notebook according to your needs.
-
-## Usage
-Once the installation is complete, you can experiment with the different training methods:
-
-1. DQN: 
-Open the corresponding Notebook and follow the instructions to start the training.
-2. Minimax:
-Run the Python script to observe a game against a random player.
-3. PPO:
-Launch the Notebook and choose the desired training mode.
+An alpha-beta pruning minimax algorithm is available to play against a random opponent. Note that a full execution may take approximately 5 minutes. To test this approach, run the dedicated Python script `Minimax/minimax.py`.
 
 ## License
 This project is licensed under the MIT License. You are free to use, modify, and distribute it according to the terms of this license.
