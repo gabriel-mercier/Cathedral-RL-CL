@@ -44,7 +44,7 @@ To train your model using DQN:
 
 #### Preparation
 
-Create an empty folder named `model_weights_DQN` to store metrics during training:
+Create an empty folder named `model_weights_DQN` in the DQN folder to store metrics during training:
 
 ```bash
 mkdir model_weights_DQN
@@ -52,6 +52,8 @@ mkdir model_weights_DQN
 
 #### Execution
 Open the **DQN.ipynb** Jupyter Notebook, adjust the hyperparameters in the designated cell, and then start the training. We can also compute plots and metrics in the notebook.
+
+**DQN.py** does the same training bur it used with tmux to run in the background.
 
 ### PPO
 
@@ -68,6 +70,10 @@ The MCTS feature is currently in a debugging phase and is not operational. You c
 
 ### Minimax
 An alpha-beta pruning minimax algorithm is available to play against a random opponent. Note that a full execution may take approximately 5 minutes. To test this approach, run the dedicated Python script `Minimax/minimax.py`.
+
+
+### DQN vs PPO
+To compare the performance of the DQN and PPO models, run the `dqn_vs_ppo.ipynb` notebook in the `dqn_vs_ppo` folder. The notebook will load the trained models and evaluate them against each other and create gifs.
 
 ## License
 This project is licensed under the MIT License. You are free to use, modify, and distribute it according to the terms of this license.
