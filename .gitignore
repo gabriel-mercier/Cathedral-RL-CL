@@ -148,7 +148,7 @@ dmypy.json
 
 /PPO/model_weights_PPO
 /PPO/model_weights_random_PPO
-
+/PPO/game_recordings
 results_DQN/models
 
 *.pth
